@@ -6,7 +6,7 @@ use vars qw($VERSION $DEBUG);
 require Exporter;
 
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 sub new {
     my ($pkg,@args) = @_;
@@ -237,6 +237,8 @@ sub draw {
     return $gd->$dt();
 }
 
+*as_image = *draw;
+
 sub gd {
    my $self = shift;
 
@@ -321,7 +323,6 @@ sub _max {
 
 1;
 __END__
-# Below is stub documentation for your module. You better edit it!
 
 =head1 NAME
 
@@ -330,25 +331,30 @@ Image::OrgChart - Perl extension for writing org charts
 =head1 SYNOPSIS
 
   use Image::OrgChart;
-  use strict; # every job should, eh ?
-  
+  use strict;
+    
   my $org_chart = Image::OrgChart->new();
   $org_chart->add('/manager/middle-manager/employee1');
   $org_chart->add('/manager/middle-manager/employee2');
   $org_chart->add('/manager/middle-manager/employee3');
   $org_chart->add('/manager/middle-manager/employee4');
   
-  $data = $org_chart->draw();
+  my $imagedata = $org_chart->as_image();
   if ($org_chart->data_type() eq 'gif') {
-      ## write gif file
+      ## write gif file using $imagedata
   } elsif ($org_chart->data_type() eq 'png') {
-      ## write png file
+      ## write png file using $imagedata
   }
+  
+  ## or
+  my $GDObj = $org_chart->gd();
+  my $imagedata = $GDObj->png();
+  
 
 =head1 DESCRIPTION
 
- Image::OrgChart, uses the perl GD module to create OrgChart style images in gif or png format, depending on which is available from your version of GD.
- There are several ways to add data to the object, but the most common is the C<$object->add($path)>. The C<$path> can be seperated by any charachter, but the default is a L</>. See the C<new()> method for that and other configuration options.
+Image::OrgChart, uses the perl GD module to create OrgChart style images in gif or png format, depending on which is available from your version of GD.
+There are several ways to add data to the object, but the most common is the C<$object->add($path)>. The C<$path> can be seperated by any charachter, but the default is a L</>. See the C<new()> method for that and other configuration options.
 
 =head1 FUNCTIONS 
 
@@ -356,61 +362,61 @@ Image::OrgChart - Perl extension for writing org charts
 
 =item new([OPTIONS])
 
- Created a new Image::OrgChart object. Takes a hash-like list of configuration options. See list below.
+Created a new Image::OrgChart object. Takes a hash-like list of configuration options. See list below.
  
 =over 2
  
 =item *
 
-   box_color - box border color in arrref triplet. default [0,0,0]
+box_color - box border color in arrref triplet. default [0,0,0]
    
 =item *
 
-   box_fill_color - box fill color in arrref triplet. default [75,75,75] 
+box_fill_color - box fill color in arrref triplet. default [75,75,75] 
    
 =item *
 
-   connect_color - line color in arrref triplet. default [0,0,0]
+connect_color - line color in arrref triplet. default [0,0,0]
    
 =item *
 
-   text_color - text color in arrref triplet. default [0,0,0]
+text_color - text color in arrref triplet. default [0,0,0]
    
 =item *
 
-   bg_color - bg color in arrref triplet. default [255,255,255]
+bg_color - bg color in arrref triplet. default [255,255,255]
    
 =item *
 
-   shadow_color - shadow color in arrref triplet. default [50,50,50]
+shadow_color - shadow color in arrref triplet. default [50,50,50]
    
 =item *
 
-   arrow_heads - 1/0, adds arrow heads to ends of lines
+arrow_heads - 1/0, adds arrow heads to ends of lines
    
 =item *
 
-   fill_boxes - 1/0, fills boxes with box_fill_color prior to adding text
+fill_boxes - 1/0, fills boxes with box_fill_color prior to adding text
    
 =item *
 
-   shadow - 1/0, draw 'shadows' for boxes. use shadow_color for color
+shadow - 1/0, draw 'shadows' for boxes. use shadow_color for color
 
 =item *
 
-   h_spacing - horizontal spacing in (in pixels)
+h_spacing - horizontal spacing in (in pixels)
    
 =item *
 
-   v_spacing - vertical spacing in (in pixels)
+v_spacing - vertical spacing in (in pixels)
    
 =item *
 
-   indent - indent when new section of boxes is started. measured in characters.
+indent - indent when new section of boxes is started. measured in characters.
    
 =item *
 
-   font - font to use. must be a vlid FD::Font name (gdTinyFont [default],gdMediumBoldFont, gdGiantFont, etc)
+font - font to use. must be a vlid GD::Font name (gdTinyFont [default],gdMediumBoldFont, gdGiantFont, etc)
 
 =item *
 
@@ -422,11 +428,11 @@ path_seperator - Seperator to use for paths provided by the C<add()> command.
 
 =item add(PATH)
 
- Add data to the object using a seperated scalar. The seperator can be set in the C<new()> constructor, but defaults to L</>.
+Add data to the object using a seperated scalar. The seperator can be set in the C<new()> constructor, but defaults to L</>.
  
 =item set_hashref(HASH_REF)
 
- This allows assignment of a hash-of-hashes as the data element of the object. People who have not persons underneath them should have an empty hash-reference as the value. e.g.
+This allows assignment of a hash-of-hashes as the data element of the object. People who have not persons underneath them should have an empty hash-reference as the value. e.g.
  
 =over 3
  
@@ -440,11 +446,11 @@ path_seperator - Seperator to use for paths provided by the C<add()> command.
  
 =item draw()
 
- this plots all of the data from the object and returns the image data.
+this plots all of the data from the object and returns the image data.
  
 =item data_type()
 
- returns the data type used by the version of GD in use.
+returns the data type used by the version of GD in use.
   
 =head2 EXPORT
 
@@ -506,6 +512,26 @@ Fixed error with connecting line of multiple first level boxes.
 =item *
 
 added gd() method. returns gd object.
+
+=back
+
+=item 0.05
+
+=over 2
+
+=item *
+
+Fixed some (more) pod errors
+
+=item *
+
+Added as_image() method as a replacment for draw(). draw() is maintained for backwards compatability, but should be considered depriciated.
+
+=item *
+
+Added GD as a prerequisite in Makefile.PL (version 1.16 of GD)
+
+=back
 
 =back
 

@@ -3,7 +3,6 @@ Makefile.PL
 OrgChart.pm
 t/building.t
 t/drawing.t
-example/
 example/example1.pl
 example/example2.pl
 example/example3.pl
