@@ -6,7 +6,7 @@ use vars qw($VERSION $DEBUG);
 require Exporter;
 
 
-$VERSION = '0.15';
+$VERSION = '0.20';
 
 sub new {
     my ($pkg,@args) = @_;
@@ -563,6 +563,16 @@ Fixed tests for Win32
 =item *
 
 Added min_height and min_width options. Added exmaple7.pl (simple min h&w example)
+
+=back
+
+=item 0.20
+
+=over 2
+
+=item *
+
+Fixed Makefile.PL
 
 =back
 
