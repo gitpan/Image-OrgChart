@@ -40,15 +40,15 @@ if ($type ne 'gif' && $type ne 'png') {
 #### Test 4 -- test data (approximate)
 $data = $t->draw();
 $length = length($data);
-if ( $length < 508 || $length > 608 ) {
-    warn "Data length not within 50 bytes.($length != 53)\n";
+if ( $length < 300 || $length > 360 ) {
+    warn "Data length not within 30 bytes.($length compared to 332)\n";
     &report_result(0);
 } else {
     &report_result(1);
 }
 
 ### Test 5 -- test data (exact length)
-if ($length != 558) {
+if ($length != 332) {
     warn "Data size not exact. Possible GD version diffrence ?\n";
     &report_result(0);
 } else {

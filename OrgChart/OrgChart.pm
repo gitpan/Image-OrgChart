@@ -6,7 +6,7 @@ use vars qw($VERSION $DEBUG);
 require Exporter;
 
 
-$VERSION = '0.01';
+$VERSION = '0.03';
 
 sub new {
     my ($pkg,@args) = @_;
@@ -18,10 +18,12 @@ sub new {
     ## defaults
     my $self = {
         box_color      => [0,0,0],
-        box_fill_color => [75,75,75],
+        box_fill_color => [120,120,120],
         connect_color  => [0,0,0],
         text_color     => [0,0,0],
         bg_color       => [255,255,255],
+        shadow_color   => [50,50,50],
+        shadow         => 0,
         arrow_heads    => 0,
         fill_boxes     => 0,
         h_spacing      => 15,
@@ -30,12 +32,14 @@ sub new {
         font           => 'gdTinyFont',
         font_height    => 10,  ## ?
         font_width     => 5,   ## ?
+        indent         => undef,
         _data          => {},
         _track         => {
             longest_name => 0,
             shortest_name => 100,
             deapest_path => 0,
             most_keys  => 0,
+            total_boxes => 1,
             },
         _image_info    => {
             height    => 0,
@@ -109,46 +113,118 @@ sub alloc_collors {
     $self->{color}{bg_color} = $image->colorAllocate($self->{bg_color}[0],$self->{bg_color}[1],$self->{bg_color}[2]);
 }
 
+sub alloc_fonts {
+    my $self = shift;
+
+    no strict 'refs';
+    my $fnt = &{$self->{font}}();
+    use strict 'refs';
+    $self->{font_width} = $fnt->width;
+    $self->{font_height} = $fnt->height;
+    $self->{indent} ||= 5;
+    $self->{indent} =  $self->{font_width}*$self->{indent};
+    warn "GD::Font H/W ($self->{font}) : $self->{font_height}/$self->{font_width}\n" if $DEBUG;
+}
+
 sub draw_boxes {
     my ($self,$image) = @_;
     my ($ULx,$ULy) = (5,5); ## start with some padding
+    $Image::OrgChart::S::CurrentY = $ULy;
     &_draw_one_row_box($self,$self->{_data},$image,$ULx,$ULy);
 }
 
+
 sub _draw_one_row_box {
     my ($self,$href,$image,$indentX,$indentY) = @_;
-    my ($ULx,$ULy) = ($indentX,$indentY);
+    my $ULx = $indentX;
+    my $indent =  $self->{indent};
+    my $creap = $self->{_tracked}{box_height} + $self->{v_spacing};
     foreach my $person (sort keys %{ $href }) {
-        my ($LRx,$LRy) = (  ($ULx+$self->{_track}{longest_name}*$self->{font_width})+2  ,  $ULy+$self->{font_height}+2  );
-        $image->rectangle($ULx,$ULy,$LRx,$LRy,$self->{color}{box_color});
-        $image->string(gdTinyFont,$ULx+2,$ULy+2,$person,$self->{color}{text_color});
-        $ULy = ($LRy+$self->{v_spacing});
-        my $R_c_point = &mid_point($LRx,$ULy,$LRx,$LRy);
-        my $B_c_point = &mid_point($ULx,$LRy,$LRx,$LRy);
-        my $depends = scalar keys %{ $href->{$person} };
-        if ($depends > 0) {
-            my $yval = ( $LRy + ($self->{v_spacing} + ($self->{font_height}+2/2)) );
-            my $Xdep_len = ($yval-$B_c_point->[1]);
-            my $cy = $yval + ( ($Xdep_len*$depends) - $Xdep_len );
-            $self->_draw_line($image,$B_c_point,[$B_c_point->[0],$cy]);
-            my ($dep_c_point);
-            for (1..$depends) { 
-                $dep_c_point = [$LRx,$yval];
-                $self->_draw_line($image,[$B_c_point->[0],$yval],$dep_c_point);
-                $yval += $Xdep_len;
+        my $ULy = $Image::OrgChart::S::CurrentY;
+        
+        # CONNECTER (if we are a child)
+        if ($Image::OrgChart::S::ParentX) {
+            ## connect
+            $self->_con_boxes($image,[$Image::OrgChart::S::ParentX,$Image::OrgChart::S::ParentY-$creap],[$ULx,$ULy]);
+        }
+
+        # RECTANGLE
+        if ($self->{shadow}) {
+            $image->filledRectangle($ULx+3,$ULy+3,$ULx+3+$self->{_tracked}{box_width},$ULy+3+$self->{_tracked}{box_height},$self->{color}{shadow_color});
+            $image->filledRectangle($ULx,$ULy,$ULx+$self->{_tracked}{box_width},$ULy+$self->{_tracked}{box_height},$self->{color}{bg_color});
+            $image->rectangle($ULx,$ULy,$ULx+$self->{_tracked}{box_width},$ULy+$self->{_tracked}{box_height},$self->{color}{box_color});
+            if ($self->{fill_boxes}) {
+                $image->fill($ULx+1,$ULy+1,$self->{color}{box_fill_color});
             }
-            $ULy = &_draw_one_row_box($self,$href->{$person},$image,$LRx,$ULy+$self->{v_spacing});
+        } else {
+            $image->rectangle($ULx,$ULy,$ULx+$self->{_tracked}{box_width},$ULy+$self->{_tracked}{box_height},$self->{color}{box_color});
+            if ($self->{fill_boxes}) {
+                $image->fill($ULx+1,$ULy+1,$self->{color}{box_fill_color});
+            }
+        }
+
+        # STRING
+        no strict 'refs';
+        my $fnt = &{$self->{font}}();
+        use strict 'refs';
+        $image->string($fnt,$ULx+2,$ULy+2,$person,$self->{color}{text_color});
+
+        # TRANSLATE
+        $Image::OrgChart::S::CurrentY += $creap;
+
+        # REPORTS
+        my $report_cnt = scalar keys %{ $href->{$person} };
+        if ($report_cnt > 0) {
+            $Image::OrgChart::S::ParentX = $ULx;
+            $Image::OrgChart::S::ParentY = $Image::OrgChart::S::CurrentY;
+            $self->_draw_one_row_box($href->{$person},$image,$ULx+$indent,$Image::OrgChart::S::CurrentY);
+            $Image::OrgChart::S::ParentX -= $indent;
+            $Image::OrgChart::S::ParentY -= $creap;
         }
     }
-    return $ULy;
+}
+
+sub _con_boxes {
+    my ($self,$image,$from,$to) = @_;
+
+    $to->[1] += ( $self->{_tracked}{box_height} / 2 );
+    my $vert_x    = ( $from->[0] + ($self->{indent}/2));
+    my $v_start_y = ( $from->[1] + $self->{_tracked}{box_height} );
+
+    $self->_draw_line($image,[$vert_x,$v_start_y],[$vert_x,$to->[1]]); # vertical
+    $self->_draw_line($image,[$vert_x,$to->[1]],[$to->[0],$to->[1]]);
 }
 
 sub _draw_line {
     my ($self,$image,$from,$to) = @_;
     $image->line($from->[0],$from->[1],$to->[0],$to->[1],$self->{color}{connect_color});
-    if ($self->{arrow_heads}) {
-        ## draw arrowheads someday
-        warn "WARNING: Arrowheads currently unsupported.\n";
+    if ($self->{arrow_heads}) { 
+        ## i only currently do Horizontal and Vertical lines, which makes
+        ## directional calculations much easier
+        if ($from->[0] == $to->[0]) {
+            ## vert line
+            if ($to->[1] > $from->[1]) {
+                ## face up
+                ###### not yet needed
+            } else {
+                ##  face down
+                ###### not yet needed
+            }
+        } else {
+            ## horiz line
+            if ($to->[0] > $from->[0]) {
+                ## face right
+                $image->line($to->[0],$to->[1],$to->[0]-4,$to->[1]-2,$self->{color}{connect_color});
+                $image->line($to->[0],$to->[1],$to->[0]-4,$to->[1]+2,$self->{color}{connect_color});
+                $image->line($to->[0]-4,$to->[1]-2,$to->[0]-4,$to->[1]+2,$self->{color}{connect_color});
+            } else {
+                ##  face left
+                ###### currently unused
+                $image->line($to->[0],$to->[1],$to->[0]+2,$to->[1]+4,$self->{color}{connect_color});
+                $image->line($to->[0],$to->[1],$to->[0]-2,$to->[1]+4,$self->{color}{connect_color});
+                $image->line($to->[0]+2,$to->[1]+4,$to->[0]-2,$to->[1]+4,$self->{color}{connect_color});
+            }
+        }
     }
 }
 
@@ -156,6 +232,7 @@ sub draw {
     my $self = shift;
 
     ## new image
+    $self->alloc_fonts();
     $self->_calc_depth();
     $self->calc_image_info();
     my $image = new GD::Image($self->{_image_info}{width},$self->{_image_info}{height});
@@ -173,15 +250,18 @@ sub _calc_depth {
     $Image::OrgChart::S::Kcount = $self->{_track}{most_keys};
     $Image::OrgChart::S::Lname = $self->{_track}{longest_name};
     $Image::OrgChart::S::Sname = $self->{_track}{shortest_name};
+    $Image::OrgChart::S::TBox = $self->{_track}{total_boxes};
     &_re_f_depth($self->{_data});
     $self->{_track}{most_keys} = $Image::OrgChart::S::Kcount;
     $self->{_track}{deapest_path} = $Image::OrgChart::S::total;
     $self->{_track}{longest_name} = $Image::OrgChart::S::Lname;
     $self->{_track}{shortest_name} = $Image::OrgChart::S::Sname;
+    $self->{_track}{total_boxes} = $Image::OrgChart::S::TBox ;
     undef($Image::OrgChart::S::total);
     undef($Image::OrgChart::S::Kcount);
     undef($Image::OrgChart::S::Lname);
     undef($Image::OrgChart::S::Sname);
+    undef($Image::OrgChart::S::TBox);
 }
 
 sub _re_f_depth {
@@ -192,6 +272,7 @@ sub _re_f_depth {
         $Image::OrgChart::S::total = $indent;
     }
     foreach my $key (keys %$href) {
+        $Image::OrgChart::S::TBox++;
             if (length($key) > $Image::OrgChart::S::Lname) {
                 $Image::OrgChart::S::Lname = length($key);
             } elsif (length($key) < $Image::OrgChart::S::Sname) {
@@ -206,9 +287,11 @@ sub _re_f_depth {
 }
 
 sub calc_image_info {
-    my $self = shift;
-    $self->{_image_info}{height} = 10*($self->{_track}{most_keys} * ($self->{v_spacing}) );
-    $self->{_image_info}{width} = 10*($self->{_track}{deapest_path} * ($self->{_track}{longest_name} + $self->{h_spacing}) );
+    my $self = shift; 
+    $self->{_tracked}{box_width} = ( ( $self->{_track}{longest_name} * $self->{font_width} ) + 2);
+    $self->{_tracked}{box_height} = ( $self->{font_height} + 2 );
+    $self->{_image_info}{height} = ( ($self->{v_spacing} + $self->{_tracked}{box_height}) * $self->{_track}{total_boxes});
+    $self->{_image_info}{width}  = ( ($self->{indent}+$self->{h_spacing}) * $self->{_track}{deapest_path})+$self->{_tracked}{box_width};
 }
 
 sub mid_point {
@@ -291,11 +374,19 @@ Image::OrgChart - Perl extension for writing org charts
    
 =item *
 
-   arrow_heads - 1/0, currently unimplimented
+   shadow_color - shadow color in arrref triplet. default [50,50,50]
    
 =item *
 
-   fill_boxes - 1/0, currently unimplimented
+   arrow_heads - 1/0, adds arrow heads to ends of lines
+   
+=item *
+
+   fill_boxes - 1/0, fills boxes with box_fill_color prior to adding text
+   
+=item *
+
+   shadow - 1/0, draw 'shadows' for boxes. use shadow_color for color
 
 =item *
 
@@ -304,6 +395,14 @@ Image::OrgChart - Perl extension for writing org charts
 =item *
 
    v_spacing - vertical spacing in (in pixels)
+   
+=item *
+
+   indent - indent when new section of boxes is started. measured in characters.
+   
+=item *
+
+   font - font to use. must be a vlid FD::Font name (gdTinyFont [default],gdMediumBoldFont, gdGiantFont, etc)
 
 =item *
 
@@ -353,6 +452,36 @@ None by default.
 Original version; created by h2xs with options
 
   -AXC -v 0.01 -n Image::OrgChart
+  
+=item 0.02
+
+Development version, unreleased
+
+=item 0.03
+
+=over 2
+
+=item *
+
+Added C<new()> options : arrow_heads,file_boxes,indent,shadow,shadow_color
+
+=item *
+
+Re-wrote image height and width calculations.
+
+=item *
+
+Corrected problem connector lines
+
+=item *
+
+Resturctured internal code to better handle changes.
+
+=item *
+
+Added font support, including dynamic font attributes.
+
+=back
 
 =back
 
@@ -366,3 +495,4 @@ Matt Sanford E<lt>mzsanford@cpan.orgE<gt>
 perl(1),GD
 
 =cut
+                          
