@@ -6,7 +6,7 @@ use vars qw($VERSION $DEBUG);
 require Exporter;
 
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 sub new {
     my ($pkg,@args) = @_;
@@ -130,6 +130,7 @@ sub draw_boxes {
     my ($self,$image) = @_;
     my ($ULx,$ULy) = (5,5); ## start with some padding
     $Image::OrgChart::S::CurrentY = $ULy;
+    $Image::OrgChart::S::BaseX = $ULx;
     &_draw_one_row_box($self,$self->{_data},$image,$ULx,$ULy);
 }
 
@@ -143,7 +144,7 @@ sub _draw_one_row_box {
         my $ULy = $Image::OrgChart::S::CurrentY;
         
         # CONNECTER (if we are a child)
-        if ($Image::OrgChart::S::ParentX) {
+        if ($Image::OrgChart::S::ParentX && ($ULx > $Image::OrgChart::S::BaseX) ) {
             ## connect
             $self->_con_boxes($image,[$Image::OrgChart::S::ParentX,$Image::OrgChart::S::ParentY-$creap],[$ULx,$ULy]);
         }
@@ -230,6 +231,14 @@ sub _draw_line {
 
 sub draw {
     my $self = shift;
+    my $gd = $self->gd();
+
+    my $dt = $self->{data_type};
+    return $gd->$dt();
+}
+
+sub gd {
+   my $self = shift;
 
     ## new image
     $self->alloc_fonts();
@@ -240,8 +249,7 @@ sub draw {
     $image->fill(0,0,$self->{color}{bg_color});
     $self->draw_boxes($image);
 
-    my $dt = $self->{data_type};
-    return $image->$dt();
+    return $image;
 }
 
 sub _calc_depth {
@@ -483,6 +491,22 @@ Added font support, including dynamic font attributes.
 
 =back
 
+=item 0.04
+
+=over 2
+
+=item *
+
+Fixed some pod errors
+
+=item *
+
+Fixed error with connecting line of multiple first level boxes.
+
+=item *
+
+added gd() method. returns gd object.
+
 =back
 
 
@@ -495,4 +519,3 @@ Matt Sanford E<lt>mzsanford@cpan.orgE<gt>
 perl(1),GD
 
 =cut
-                          
