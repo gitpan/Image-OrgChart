@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-#### Indent Example
+#### Shadow Example
 
 require '../OrgChart.pm';
 use strict;
@@ -24,11 +24,12 @@ $hash{bar} = {
                                     },
              };
 my $t = Image::OrgChart->new(
-                             indent      => 2, # characters
+                             indent      => 3, # characters
+                             shadow      => 1,
                              );
 $t->set_hashref(\%hash);
 
-my $file = 'test.' . $t->data_type;
+my $file = $0 . $t->data_type;
 
 open(OUT,"> $file") || die "Could not open output file : $1";
 binmode(OUT);

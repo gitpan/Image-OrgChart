@@ -1,21 +1,24 @@
 #!/usr/bin/perl
 
-## Stamdard Example
+## Color Example
 
-use lib '../blib';                    
-use Image::OrgChart;
-
+require '../OrgChart.pm';
 use strict;
+
+print "OrgChart [v$Image::OrgChart::VERSION]\n";
 
 my %hash = ();
 $hash{bar} = {
 	      'foo1' => {},
 	      'foo2' => {},
              };
-my $t = Image::OrgChart->new();
+my $t = Image::OrgChart->new(box_fill_color => [255,0,0],
+                             fill_boxes => 1,
+
+                             );
 $t->set_hashref(\%hash);
 
-my $file = 'test.' . $t->data_type;
+my $file = $0 . $t->data_type;
 
 open(OUT,"> $file") || die "Could not open output file : $1";
 binmode(OUT);

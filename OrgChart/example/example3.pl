@@ -17,7 +17,7 @@ my $t = Image::OrgChart->new(
                              );
 $t->set_hashref(\%hash);
 
-my $file = 'test.' . $t->data_type;
+my $file = $0 . $t->data_type;
 
 open(OUT,"> $file") || die "Could not open output file : $1";
 binmode(OUT);

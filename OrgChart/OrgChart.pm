@@ -6,7 +6,7 @@ use vars qw($VERSION $DEBUG);
 require Exporter;
 
 
-$VERSION = '0.10';
+$VERSION = '0.15';
 
 sub new {
     my ($pkg,@args) = @_;
@@ -17,6 +17,8 @@ sub new {
 
     ## defaults
     my $self = {
+        min_width      => 0,
+        min_height     => 0,
         box_color      => [0,0,0],
         box_fill_color => [120,120,120],
         connect_color  => [0,0,0],
@@ -246,7 +248,10 @@ sub gd {
     $self->alloc_fonts();
     $self->_calc_depth();
     $self->calc_image_info();
-    my $image = new GD::Image($self->{_image_info}{width},$self->{_image_info}{height});
+    my $height = ( $self->{min_height} > $self->{_image_info}{height} ? $self->{min_height}  : $self->{_image_info}{height} );
+    my $width  = ( $self->{min_width} > $self->{_image_info}{width} ? $self->{min_width}  : $self->{_image_info}{width} );
+    #printf("HxW = %dx%d\n",$height,$width);
+    my $image = new GD::Image($width,$height);
     $self->alloc_collors($image);
     $image->fill(0,0,$self->{color}{bg_color});
     $self->draw_boxes($image);
@@ -365,6 +370,14 @@ There are several ways to add data to the object, but the most common is the C<$
 Created a new Image::OrgChart object. Takes a hash-like list of configuration options. See list below.
  
 =over 2
+
+=item *
+
+min_height - A minimum height for the output image (in pixels)
+
+=item *
+
+min_width - A minimum width for the output image (in pixels)
  
 =item *
 
@@ -540,6 +553,18 @@ Added GD as a prerequisite in Makefile.PL (version 1.16 of GD)
 =item *
 
 Fixed tests for Win32
+
+=back
+
+=item 0.15
+
+=over 2
+
+=item *
+
+Added min_height and min_width options. Added exmaple7.pl (simple min h&w example)
+
+=back
 
 =back
 
